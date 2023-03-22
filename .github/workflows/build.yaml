@@ -33,12 +33,12 @@ jobs:
         path: webapi
         retention-days: 5
         if-no-files-found: error
-    deploy:
-      needs: build
-      runs-on: ubuntu-latest
-      steps:
-      - name: Download a Build Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: webapi
-          path: webapi
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download a Build Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: webapi
+        path: webapi
