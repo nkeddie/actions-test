@@ -1,44 +1,55 @@
-name: .NET Build
+name: Build and deploy .NET app to Azure Web App
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - release/*
+      - develop
+  workflow_dispatch:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 6.0.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
-    - name: Publish
-      run: dotnet publish src/WebApi/WebApi.csproj -c Release -o webapi
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: webapi
-        path: webapi
-        retention-days: 5
-        if-no-files-found: error
+      - uses: actions/checkout@v2
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+          include-prerelease: true
+
+      - name: Build with dotnet
+        run: dotnet build --configuration Release
+
+      - name: dotnet publish
+        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/webapi
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v2
+        with:
+          name: webapi
+          path: ${{env.DOTNET_ROOT}}/webapi
+
   deploy:
+    runs-on: windows-latest
     needs: build
-    runs-on: ubuntu-latest
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
     steps:
-    - name: Download a Build Artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: webapi
-        path: webapi
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v2
+        with:
+          name: webapi
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'actions-test'
+          slot-name: 'production'
+          publish-profile: ${{ secrets.AzureAppService_PublishProfile }}
+          package: .
